@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import os
 import shutil
+import plotly_express as px
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -31,7 +32,7 @@ from matplotlib.widgets import Slider, Button
 from IPython.core.display import HTML
 
 # allows for large java HTML
-matplotlib.rcParams['animation.embed_limit'] = 2**128
+matplotlib.rcParams['animation.embed_limit'] = 2**128 
 
 
 # Note 1: DORA.find_center
@@ -73,7 +74,7 @@ def find_center(*relevant_parameters):
 
     # I will analyze the raw data from Ryan's code as pre_data and then covert that into two separate parts
     # 1) (data) the data formatted as arrays to be graphed [necessary numbers only]
-    # 2) (data_back) the data formated as a Dataframe for record keeping [NaN placed where erroneous value lies]
+    # 2) (data_back) the data formated as a Dataframe for record keeping [NaN placed where excluded values lie] (specifically they are excluded because of an invalid reading from Ryan's code)
     # read the csv file intended
     pre_data = pd.read_csv(file_name, header=None)
     # pre_data = pre_data.dropna()  # drop all NaN values?
@@ -111,11 +112,11 @@ def find_center(*relevant_parameters):
     # in data back develop a time colomn
     data_back['Time (ms)'] = data_back['index']*time_step
 
-    # set all target x positions to NaN, if the reading was erroneous
+    # set all target x positions to NaN, if the reading was excluded due to invalid reading
     data_back['X position'] = np.nan
-    # set all target y positions to NaN, if the reading was erroneous
+    # set all target y positions to NaN, if the reading was excluded due to invalid reading
     data_back['Y position'] = np.nan
-    data_back['Error Type'] = 'Invalid Reading'
+    data_back['Excluded Type'] = 'Invalid Reading'
 
     ####################################### CENTERING ALGORITHM ###############################################
 
@@ -256,7 +257,7 @@ def find_center(*relevant_parameters):
         graph_type = 'Algorithm_Center_Guess'
 
         # change title order!!! 
-        list_of_strings = [graph_type, exp_tag, pk ]
+        list_of_strings = [graph_type, exp_tag]
 
         #in quotes is the the delimiter between the items in the string
         # by default it is a _ 
@@ -467,16 +468,16 @@ def downsample(*downsample_parameters):
     # Angular Analysis:
 
     #         By Jerry
-    # radius_filter: Demarcate the questionable data points that will be eliminated from calculations
-    # find_err_angle: Indicate erroneous angles within angular_continuous by Jerry
-    # angular_continuous_filtered: Angular Continuous recalculated with questionable points filtered. Questionable skips indicated.
+    # radius_filter: Demarcate the excluded data points that will be eliminated from calculations
+    # find_excluded_angle: Indicate excluded angles within angular_continuous by Jerry
+    # angular_continuous_filtered: Angular Continuous recalculated with excluded points filtered. Excluded points skips indicated.
     # basal3: Graphs tailored for the basal graph analysis 3/14/2022
     # Angular Continuous with a downsampled curve as well. still has bugs with error labelling
 
     #         By Claire:  [NOT DONE]
     # angular: angle vs time, but it's not cummulative and resets at 360 to 0 (Claire)
     # angular_continuous: Claire's Calculation of a cummulative angle
-    # find_err_angle_CR: Indicate erroneous angles within angular_continuous by Claire's calculations
+    # find_excluded_angle_CR: Indicate erroneous angles within angular_continuous by Claire's calculations
 
     # Animation   [NOT DONE]
     # interactive: Interactive graph
@@ -509,8 +510,12 @@ def graph(plot_type, *graph_parameters):
     trajectory_map = ["2D", "3D"]
 
     # create a list of the acceptable groupings for the Angle Time grouping
-    AngleTime = ["radius_filter", "find_err_angle", "angular_continuous_filtered",
-                 "basal3", "angular", "angular_continuous", "find_err_angle_CR"]
+    AngleTime = ["radius_filter", "find_excluded_angle", "angular_continuous_filtered",
+                 "basal3", "angular", "angular_continuous", "find_excluded_angle_CR"]
+
+    # create a list of the acceptable groupings for the Animations Grouping
+
+    animations = ["interactive", "animated", "HTML","plotly_animated"]
 
     if plot_type in trajectory_map:
 
@@ -526,16 +531,12 @@ def graph(plot_type, *graph_parameters):
         #####################Graphing data assignment block##############
         # Here the code determines the units of the graph, only for cartesian graphs
         if unit == "pixel":
-            x_unit = 3
-            y_unit = 4
+            x = df["X displacement (pixels)"]
+            y = df["Y displacement (pixels)"]
         if unit == "nm":
-            x_unit = 5
-            y_unit = 6
-        # assign values of x y and z
-        # move this outside this block to apply for all "none"
-        x = df.iloc[:, x_unit]
-        y = df.iloc[:, y_unit]
-        z = df.iloc[:, 7]  # col 7 is the time col
+            x = df["X displacement (nm)"]
+            y = df["Y displacement (nm)"]
+        z = df["Time (ms)"]
 
         # graph either
         if plot_type == "2D":
@@ -712,16 +713,12 @@ def graph(plot_type, *graph_parameters):
         #####################Graphing data assignment block##############
         # Here the code determines the units of the graph, only for cartesian graphs
         if unit == "pixel":
-            x_unit = 3
-            y_unit = 4
+            x = df["X displacement (pixels)"]
+            y = df["Y displacement (pixels)"]
         if unit == "nm":
-            x_unit = 5
-            y_unit = 6
-        # assign values of x y and z
-        # move this outside this block to apply for all "none"
-        x = df.iloc[:, x_unit]
-        y = df.iloc[:, y_unit]
-        z = df.iloc[:, 7]  # col 7 is the time col
+            x = df["X displacement (nm)"]
+            y = df["Y displacement (nm)"]
+        z = df["Time (ms)"]
         
         # unpack list xy_goodbad into respective outputs
         x_good, y_good, x_bad, y_bad = xy_goodbad
@@ -819,7 +816,7 @@ def graph(plot_type, *graph_parameters):
 
             if save_plot == "yes":
                 plt.savefig(title+"_2D.png")  # put title input and date time
-        if plot_type == "find_err_angle":
+        if plot_type == "find_excluded_angle":
 
             # data organization
             times = data["index"]
@@ -871,7 +868,7 @@ def graph(plot_type, *graph_parameters):
             # the number 00086.csv is the peak --> so this code takes the peak number
             pk = os.path.splitext(file_name)[0]
 
-            graph_type = 'Find_Questionable_Angle'
+            graph_type = 'Find_Excluded_Angle'
 
             # change title order!!! 
             list_of_strings = [graph_type, exp_tag]
@@ -881,6 +878,7 @@ def graph(plot_type, *graph_parameters):
             my_title = "_".join(list_of_strings)
             my_title = graph_type + "\n" + my_title #add a line break between graph name and defining parameters
             plt.title(my_title)
+            
             if frame_end == -1:   # negative 1
                 last_frame = pre_data.iloc[:,0].iat[-1] #in the index column, give me the last valid value --> this is the max Frames
             else:
@@ -972,7 +970,298 @@ def graph(plot_type, *graph_parameters):
             # hovering attempt 2
             # added by Jerry for Matplotlib compatible hovering
             mplcursors.cursor(hover=True)
+    
+    if plot_type in animations:
+        
+        # Accept my variables from graphing parameters
+        (file_name, down_sampled_df, plot_type, display_center, ind_invalid_reading, rad_filter_type_upper,
+                  rad_filter_type_lower, z_up, z_down, dist_high, dist_low, graph_style, bin_size, frame_start, frame_end,
+                  display_center, exp_tag, x_axis_label, y_axis_label, z_axis_label, unit, pixel_min, pixel_max,
+                  axis_increment_nm, axis_increment_pixel, nm_min, nm_max, save_plot, data_back, cmap, exp_tag, frame_speed, tail_length) = graph_parameters
 
+
+        # Claire's code accepts down_sampled_df as df
+        df = down_sampled_df
+
+        #####################Graphing data assignment block##############
+        # Here the code determines the units of the graph, only for cartesian graphs
+        if unit == "pixel":
+            x = df["X displacement (pixels)"]
+            y = df["Y displacement (pixels)"]
+        if unit == "nm":
+            x = df["X displacement (nm)"]
+            y = df["Y displacement (nm)"]
+        z = df["Time (ms)"]
+
+            
+        if plot_type == "animated" or plot_type == 'HTML':
+            # allows for animation to animate
+#             %matplotlib notebook
+            #reassigning to a dataframe, setting up axis with empty list, aspect ratio
+            coord = pd.DataFrame(x)
+            coord.columns = ['x']
+            coord['y'] = y
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            sc = ax.scatter([], [])
+            plt.axis('square')
+            
+            # chosing units
+            if unit == "pixel":
+                    ax.set_xlim(pixel_min, pixel_max) 
+                    ax.set_ylim(pixel_min, pixel_max)
+                    ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))# change to 5 for increments of .5
+                    ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))
+                    ax.grid()
+            if unit == "nm":
+                    ax.set_xlim(nm_min, nm_max) 
+                    ax.set_ylim(nm_min, nm_max)
+                    ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
+                    ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
+                    ax.grid()
+            ax.set_xlabel(x_axis_label, fontweight = 'bold', fontsize = 12)
+            ax.set_ylabel(y_axis_label, fontweight = 'bold', fontsize = 12)
+            
+            
+            # Title configuration
+
+            # take the file name and separate from the extension
+            # the first value in the tuple is the number
+            # the second is .csv 
+            # the number 00086.csv is the peak --> so this code takes the peak number
+            pk = os.path.splitext(file_name)[0]
+
+            graph_type = 'Animated_2D_Plot'
+
+            # change title order!!! 
+            list_of_strings = [graph_type, exp_tag, pk]
+
+            #in quotes is the the delimiter between the items in the string
+            # by default it is a _ 
+            my_title = "_".join(list_of_strings)
+           
+
+            # plot title and font configurations
+            plt.title(my_title , fontweight = 'bold', fontsize = 16)
+
+
+
+
+
+            # animation function feeds a window of dataframe values into the graphing function at a time,
+            # iterates over user specified range in dataframe with user specified tail length
+            # color of animation is also specified here
+            def animate(count):
+                sc.set_offsets(np.c_[coord.x.values[count-tail_length:count],coord.y.values[count-tail_length:count]])
+                cmap = plt.cm.Greens
+                norm = plt.Normalize(vmin=0, vmax=tail_length)
+                z = np.array(range(tail_length))
+                c = cmap(norm(z))
+                sc.set_color(c)
+                #button_ax = plt.axes([.78, .87, .1, .07]) # creates an outline for a potential button
+               
+                return sc
+
+            ani = FuncAnimation(fig, animate, interval= frame_speed, frames = len(coord)) #frames=len(df)
+            #ani.toggle(ax=button_ax)# potential button toggle for a potential button ;)
+            if save_plot == 'yes':
+                
+                ani.save(my_title+'_animation_gif.gif', writer='pillow', fps=10, dpi=100)
+
+            plt.tight_layout()
+            plt.show()
+            # With out the added if statement below, the animated plot will not animate 
+            #(due to being a nested function)
+        if plot_type == 'animated': 
+
+                
+
+            return ani
+        # 
+        if plot_type == 'HTML':
+            plt.close('all')
+            if save_plot == 'yes':
+                with open(my_title+"_animation_html.html", "w") as f:
+                    print(ani.to_jshtml(), file=f)
+            return HTML(ani.to_jshtml())
+        
+        if plot_type == "interactive":
+
+            #configure plot settings (currently called trace 1, may add more traces in the future)
+            trace1=go.Scatter3d(x=x,
+                                y=y,
+                                z=z,
+                                mode = "lines",
+                                name = 'Original',
+                                marker=dict(
+                                    size=4,
+                                    color='#e9ebf0',
+                                    opacity=0.7,
+                                    showscale=False,
+                                    colorbar=dict(
+                                        title='Time (ms)')),
+                                line=dict(
+                                    color='#e9ebf0',
+                                    width=2))
+            #assign traces
+            fig = go.Figure(data=[trace1])
+            
+            # Title configuration
+
+            # take the file name and separate from the extension
+            # the first value in the tuple is the number
+            # the second is .csv 
+            # the number 00086.csv is the peak --> so this code takes the peak number
+            pk = os.path.splitext(file_name)[0]
+
+            graph_type = 'Animated_2D_Plot'
+
+            # change title order!!! 
+            list_of_strings = [graph_type, exp_tag, pk]
+
+            #in quotes is the the delimiter between the items in the string
+            # by default it is a _ 
+            my_title = "_".join(list_of_strings)
+           
+
+            # plot title and font configurations
+            plt.title(my_title , fontweight = 'bold', fontsize = 16)
+
+            
+            
+            #assign title
+            
+            fig.update_layout(title= my_title)
+            #assign axis labels
+            fig.update_layout(scene = dict(
+                        xaxis_title= x_axis_label,
+                        yaxis_title= y_axis_label,
+                        zaxis_title= z_axis_label)) 
+
+            #Here we can tweak the background color, grid color, and color of the origin for all axes/plane
+            fig.update_layout(scene = dict(
+                        xaxis = dict(
+                             backgroundcolor="black",
+                             gridcolor="gray",
+                             showbackground=True,
+                             zerolinecolor="white",),
+                        yaxis = dict(
+                            backgroundcolor="black",
+                            gridcolor="gray",
+                            showbackground=True,
+                            zerolinecolor="white"),
+                        zaxis = dict(
+                            backgroundcolor="black",
+                            gridcolor="gray",
+                            showbackground=True,
+                            zerolinecolor="white"),),
+                      )
+
+            #size and aspect ratio of the graph and the default camera zoom and angle 
+            fig.update_layout(
+            width=800,
+            height=700,
+            autosize=False,
+            scene=dict(
+            camera=dict(
+                up=dict(
+                    x=0,
+                    y=0,
+                    z=1
+                ),
+                eye=dict(
+                    x=1,
+                    y=2,
+                    z=2,
+                )
+            ),
+            aspectratio = dict( x=1, y=1, z=4 ),
+            aspectmode = 'manual'
+            ),
+            )
+            
+            
+
+            fig.show()
+
+        
+    if plot_type == "grid":
+
+        #Receiving data Block
+        [file_name, down_sampled_df, plot_type, display_center, exp_tag, x_axis_label, y_axis_label, z_axis_label, unit, 
+        pixel_min, pixel_max, axis_increment_nm, axis_increment_pixel, nm_min, nm_max, save_plot, frame_start, frame_end, time_step,cmap,exp_tag, 
+        frames_per_plot, columns, fig_size_x, fig_size_y] = graph_parameters
+
+        #Changing names to accept DF
+        df = down_sampled_df
+
+        ######## SETUP FOR GRID PLOT
+
+        #####################Graphing data assignment block##############
+        # Here the code determines the units of the graph, only for cartesian graphs
+        if unit == "pixel":
+            x = df["X displacement (pixels)"]
+            y = df["Y displacement (pixels)"]
+        if unit == "nm":
+            x = df["X displacement (nm)"]
+            y = df["Y displacement (nm)"]
+        z = df["Time (ms)"]
+        
+        #determine number of plots from amount of frames desired in each plot
+        j = int(math.ceil(len(df)/frames_per_plot))
+        if plot_type == 'grid':
+            print(*['number of plots:',j])
+
+        # Function for 2D plot parameters (called when user asks for multiple plots)
+        # the grid_plot graph type runs best when this function is defined here and is called under plot_type == grid_plot if statement
+        def do_plot(ax):
+            #regular graphing parameters for 2D graph (color of scatter, size, shape, tick marks, etc.)
+            colors = cm.Greens(np.linspace(0, 1, len(z)))
+            p=ax.scatter(x, y, c=colors)
+            #fig = plt.figure(figsize=(6,6), dpi=100)
+            tix = np.linspace(0,len(z),6)
+            #tix_c = tix*time_step
+            #cbar2.set_ticklabels(tix_c)
+            plt.axis('square')
+            plt.xticks(rotation=45)
+            if unit == "pixel":
+                ax.set_xlim(pixel_min, pixel_max) 
+                ax.set_ylim(pixel_min, pixel_max)
+                ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))# change to 5 for increments of .5
+                ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))
+                ax.grid()
+            if unit == "nm":
+                ax.set_xlim(nm_min, nm_max) 
+                ax.set_ylim(nm_min, nm_max)
+                ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
+                ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
+                ax.grid()
+        
+        i = 0
+        dfs = np.array_split(df,j) # splits large dataframe into "j" equal dataframes
+        #print (dfs[i]) #<--- command to print each dataframe # dataframe 0 is the first dataframe
+        
+        #this portion specifies subplot dimentions (N plots in 3 columns and amount of appropriate rows)
+        cols = columns
+        rows = int(math.ceil(j / cols)) #determining rows based on the number of graphs and columns
+
+        gs = gridspec.GridSpec(rows, cols, wspace = .25, hspace = .25)# disallows overlap
+        fig = plt.figure(figsize = (fig_size_x,fig_size_y))
+        
+        while i < j:
+                
+            x = dfs[i].iloc[:,x_unit] 
+            y = dfs[i].iloc[:,y_unit]
+            z = dfs[i].iloc[:,7]
+            ax = fig.add_subplot(gs[i])
+            do_plot(ax)
+            i+= 1
+        if save_plot == "yes":
+            
+            framestr = '{}'.format(frames_per_plot)
+            plt.savefig(title+'_'+framestr+'_frames_per_plot'+'_gridplot.png', dpi=300)
+
+        plt.show()
 
 # Note 4: DORA.table
 # the following code creates the relevant data tables from the inputs detailed below in the template section
@@ -1025,9 +1314,9 @@ def table(*table_parameters):
     # Label of the Data with either Normal, Upper bound, Lower Bound, Invalid Reading
 
     # Initialize the data table to be populated
-    data_final_final["Error Type"] = 'None'
+    data_final_final["Excluded Type"] = 'None'
     # store this into a dummy vector
-    dummy_vec = data_final_final["Error Type"].copy()
+    dummy_vec = data_final_final["Excluded Type"].copy()
 
     # Set all indices of AVT_good to normal
     # Select all indicies that are NORMAL --> avt_good indicies
@@ -1046,9 +1335,9 @@ def table(*table_parameters):
     ind_bad_up = data_fil_up_bad["index"].copy()
     dummy_vec[ind_bad_up] = 'Above Bound'
 
-    data_final_final["Error Type"] = dummy_vec
+    data_final_final["Excluded Type"] = dummy_vec
     data_final_final = data_final_final[[
-        "index", "Time (ms)", "Angle", "Delta Angle", "Continuous Angle", "Error Type"]]
+        "index", "Time (ms)", "Angle", "Delta Angle", "Continuous Angle", "Excluded Type"]]
 
     if save_table == "yes":
         my_title = file_name + "_Final_DataTable.csv"
