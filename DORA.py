@@ -81,8 +81,8 @@ def find_center(*relevant_parameters):
     # create an array increasing in steps of
     pre_data['index'] = range(len(pre_data))
     pre_data.columns = ['X position',
-                        'Y position', 'index']  # label the columns
-    pre_data = pre_data.iloc[:, [2, 0, 1]]  # reorganize the columns
+                        'Y position', 'Intensity','index']  # label the columns
+    pre_data = pre_data.iloc[:, [3, 0, 1 ,2]]  # reorganize the columns
     # create a boolean array of where 1s are when x position is 0 or invalid
 
     #section data from frame start to frame end
@@ -264,6 +264,8 @@ def find_center(*relevant_parameters):
         my_title = "_".join(list_of_strings)
 
         plt.title(my_title, fontweight='bold', fontsize=16)
+
+        plt.grid()
 
         if save_plot == "yes":
                 # put title input and date time
@@ -479,7 +481,7 @@ def downsample(*downsample_parameters):
     # angular_continuous: Claire's Calculation of a cummulative angle
     # find_excluded_angle_CR: Indicate erroneous angles within angular_continuous by Claire's calculations
 
-    # Animation   [NOT DONE]
+    #          Animation   [DONE]
     # interactive: Interactive graph
     # animated: animated trajectory in notebook
     # HTML: Animated trajectory in a new window. May run better
@@ -487,16 +489,51 @@ def downsample(*downsample_parameters):
 Template for DORA.graph(*INPUTS)
 
 use the following for graph_parameters
+#Graph Groupings:
+# create a list of the acceptable groupings for the trajectory maps
+trajectory_map = ["2D", "3D"]
+
+# create a list of the acceptable groupings for the Angle Time grouping
+AngleTime = ["radius_filter", "find_err_angle", "angular_continuous_filtered",
+                "basal3", "angular", "angular_continuous", "find_err_angle_CR"]
+
+# create a list of the acceptable groupings for the Animations Grouping
+
+animations = ["interactive", "animated", "HTML"]
 
 #Trajectory map parameters:
-tajectory_map_parameters = [file_name, down_sampled_df, plot_type, display_center, title, x_axis_label, y_axis_label, z_axis_label, unit, 
+tajectory_map_parameters = [file_name, down_sampled_df, plot_type, display_center, exp_tag, x_axis_label, y_axis_label, z_axis_label, unit, 
 pixel_min, pixel_max, axis_increment_nm, axis_increment_pixel, nm_min, nm_max, save_plot, frame_start, frame_end, time_step,cmap,exp_tag]
 
 #Angle Versus Time (AVT or avt) parameters:
 avt_parameters = [file_name, down_sampled_df, plot_type, display_center, ind_invalid_reading, rad_filter_type_upper,
                   rad_filter_type_lower, z_up, z_down, dist_high, dist_low, graph_style, bin_size, frame_start, frame_end,
-                  display_center, title, x_axis_label, y_axis_label, z_axis_label, unit, pixel_min, pixel_max,
-                  axis_increment_nm, axis_increment_pixel, nm_min, nm_max, save_plot, data_back, cmap,exp_tag] 
+                  display_center, exp_tag, x_axis_label, y_axis_label, z_axis_label, unit, pixel_min, pixel_max,
+                  axis_increment_nm, axis_increment_pixel, nm_min, nm_max, save_plot, data_back, cmap, exp_tag] 
+
+#Animated Parameters
+animated_parameters = [file_name, down_sampled_df, plot_type, display_center, ind_invalid_reading, rad_filter_type_upper,
+                  rad_filter_type_lower, z_up, z_down, dist_high, dist_low, graph_style, bin_size, frame_start, frame_end,
+                  display_center, exp_tag, x_axis_label, y_axis_label, z_axis_label, unit, pixel_min, pixel_max,
+                  axis_increment_nm, axis_increment_pixel, nm_min, nm_max, save_plot, data_back, cmap, exp_tag, frame_speed, tail_length] 
+
+#Grid Parameters
+grid_parameters = [file_name, down_sampled_df, plot_type, display_center, exp_tag, x_axis_label, y_axis_label, z_axis_label, unit, 
+pixel_min, pixel_max, axis_increment_nm, axis_increment_pixel, nm_min, nm_max, save_plot, frame_start, frame_end, time_step,cmap,exp_tag, 
+frames_per_plot, columns, fig_size_x, fig_size_y]
+
+
+# #DORA.graph(plot_type,*relevant_parameters)
+
+if plot_type == "2D" or plot_type == "3D":
+    DORA.graph(plot_type,*tajectory_map_parameters)
+if plot_type in animations:
+    %matplotlib notebook
+    DORA.graph(plot_type,*animated_parameters)
+if plot_type == "grid":
+    DORA.graph(plot_type, *grid_parameters)
+if plot_type in AngleTime:
+    DORA.graph(plot_type,*avt_parameters)
 '''
 
 
@@ -724,6 +761,10 @@ def graph(plot_type, *graph_parameters):
         x_good, y_good, x_bad, y_bad = xy_goodbad
 
         # Calculate The angle according to Claire's method
+        df_theta = AngleCalc.avt_no_filter(
+            down_sampled_df, frame_start, frame_end)
+
+        
         t, theta, thetac = AngleCalc.avt_no_filter(
             down_sampled_df, frame_start, frame_end)
 
@@ -897,6 +938,7 @@ def graph(plot_type, *graph_parameters):
             # hovering attempt 2
             # added by Jerry for Matplotlib compatible hovering
             mplcursors.cursor(hover=True)
+
             # Graph the newly calcuated Angular Continuous data, now filtered for good points only
         if plot_type == "angular_continuous_filtered":
 
@@ -970,6 +1012,97 @@ def graph(plot_type, *graph_parameters):
             # hovering attempt 2
             # added by Jerry for Matplotlib compatible hovering
             mplcursors.cursor(hover=True)
+
+        # Angular plot
+        
+        if plot_type == "angular":
+            import plotly.express as px
+
+            # Title configuration
+
+            # take the file name and separate from the extension
+            # the first value in the tuple is the number
+            # the second is .csv 
+            # the number 00086.csv is the peak --> so this code takes the peak number
+            pk = os.path.splitext(file_name)[0]
+
+            graph_type = "Angle vs Time"
+
+            # change title order!!! 
+            list_of_strings = [graph_type, exp_tag, pk]
+
+            #in quotes is the the delimiter between the items in the string
+            # by default it is a _ 
+            my_title = " ".join(list_of_strings)
+
+            
+            fig = px.scatter(x = t, y = theta, title = my_title, width=1000, height=500, )
+           
+            fig.update_traces(hovertemplate='Time (ms): %{x} <br>Theta: %{y}')
+
+            
+        
+            fig.update_layout(
+            xaxis_title="Time (ms)",
+            yaxis_title="Theta (degrees)"
+            )
+            
+
+            fig.update_layout(
+            yaxis = dict(
+            tickmode = 'linear',
+            tick0 = 360,
+            dtick = 45))
+            fig.show()
+            
+            if save_plot == "yes":
+                fig.write_image(my_title +"_angular.png") 
+
+           
+            # Angular continuous plot
+        if plot_type == "angular_continuous":
+            
+            import plotly.express as px
+
+            # Title configuration
+
+            # take the file name and separate from the extension
+            # the first value in the tuple is the number
+            # the second is .csv 
+            # the number 00086.csv is the peak --> so this code takes the peak number
+            pk = os.path.splitext(file_name)[0]
+
+            graph_type = "Continuous Angular Rotation"
+
+            # change title order!!! 
+            list_of_strings = [graph_type, exp_tag, pk]
+
+            #in quotes is the the delimiter between the items in the string
+            # by default it is a _ 
+            my_title = " ".join(list_of_strings)
+            
+            fig = px.line(x=t, y=thetac, title = my_title)
+            fig.update_traces(hovertemplate='Time (ms): %{x} <br>Theta: %{y}')
+            
+            fig.update_layout(
+            xaxis_title="Time (ms)",
+            yaxis_title="Theta (degrees)")
+            
+            fig.update_layout(
+            xaxis = dict(
+            tickmode = 'linear',
+            tick0 = 0,
+            dtick = 1000))
+            
+            fig.update_layout(
+            yaxis = dict(
+            tickmode = 'linear',
+            tick0 = -360,
+            dtick = 180))
+                        
+            fig.show()
+            if save_plot == "yes":
+                fig.write_image(title+"_angular_continuous.png") 
     
     if plot_type in animations:
         
@@ -993,9 +1126,8 @@ def graph(plot_type, *graph_parameters):
             y = df["Y displacement (nm)"]
         z = df["Time (ms)"]
 
-            
         if plot_type == "animated" or plot_type == 'HTML':
-            # allows for animation to animate
+#             # allows for animation to animate
 #             %matplotlib notebook
             #reassigning to a dataframe, setting up axis with empty list, aspect ratio
             coord = pd.DataFrame(x)
@@ -1006,24 +1138,8 @@ def graph(plot_type, *graph_parameters):
             sc = ax.scatter([], [])
             plt.axis('square')
             
-            # chosing units
-            if unit == "pixel":
-                    ax.set_xlim(pixel_min, pixel_max) 
-                    ax.set_ylim(pixel_min, pixel_max)
-                    ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))# change to 5 for increments of .5
-                    ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))
-                    ax.grid()
-            if unit == "nm":
-                    ax.set_xlim(nm_min, nm_max) 
-                    ax.set_ylim(nm_min, nm_max)
-                    ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
-                    ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
-                    ax.grid()
-            ax.set_xlabel(x_axis_label, fontweight = 'bold', fontsize = 12)
-            ax.set_ylabel(y_axis_label, fontweight = 'bold', fontsize = 12)
             
-            
-            # Title configuration
+            #Title configuration
 
             # take the file name and separate from the extension
             # the first value in the tuple is the number
@@ -1040,6 +1156,25 @@ def graph(plot_type, *graph_parameters):
             # by default it is a _ 
             my_title = "_".join(list_of_strings)
            
+
+            # plot title and font configurations
+            plt.title(my_title , fontweight = 'bold', fontsize = 16)
+            
+            # chosing units
+            if unit == "pixel":
+                    ax.set_xlim(pixel_min, pixel_max) 
+                    ax.set_ylim(pixel_min, pixel_max)
+                    ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))# change to 5 for increments of .5
+                    ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))
+                    ax.grid()
+            if unit == "nm":
+                    ax.set_xlim(nm_min, nm_max) 
+                    ax.set_ylim(nm_min, nm_max)
+                    ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
+                    ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
+                    ax.grid()
+            ax.set_xlabel(x_axis_label, fontweight = 'bold', fontsize = 12)
+            ax.set_ylabel(y_axis_label, fontweight = 'bold', fontsize = 12)
 
             # plot title and font configurations
             plt.title(my_title , fontweight = 'bold', fontsize = 16)
@@ -1068,6 +1203,10 @@ def graph(plot_type, *graph_parameters):
                 
                 ani.save(my_title+'_animation_gif.gif', writer='pillow', fps=10, dpi=100)
 
+
+
+
+
             plt.tight_layout()
             plt.show()
             # With out the added if statement below, the animated plot will not animate 
@@ -1084,6 +1223,97 @@ def graph(plot_type, *graph_parameters):
                 with open(my_title+"_animation_html.html", "w") as f:
                     print(ani.to_jshtml(), file=f)
             return HTML(ani.to_jshtml())
+            
+#         if plot_type == "animated" or plot_type == 'HTML':
+#             # allows for animation to animate
+# #             %matplotlib notebook
+#             #reassigning to a dataframe, setting up axis with empty list, aspect ratio
+#             coord = pd.DataFrame(x)
+#             coord.columns = ['x']
+#             coord['y'] = y
+#             fig = plt.figure()
+#             ax = fig.add_subplot(111)
+#             sc = ax.scatter([], [])
+#             plt.axis('square')
+            
+#             # chosing units
+#             if unit == "pixel":
+#                     ax.set_xlim(pixel_min, pixel_max) 
+#                     ax.set_ylim(pixel_min, pixel_max)
+#                     ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))# change to 5 for increments of .5
+#                     ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_pixel))
+#                     ax.grid()
+#             if unit == "nm":
+#                     ax.set_xlim(nm_min, nm_max) 
+#                     ax.set_ylim(nm_min, nm_max)
+#                     ax.yaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
+#                     ax.xaxis.set_major_locator(ticker.LinearLocator(axis_increment_nm))
+#                     ax.grid()
+#             ax.set_xlabel(x_axis_label, fontweight = 'bold', fontsize = 12)
+#             ax.set_ylabel(y_axis_label, fontweight = 'bold', fontsize = 12)
+            
+            
+#             # Title configuration
+
+#             # take the file name and separate from the extension
+#             # the first value in the tuple is the number
+#             # the second is .csv 
+#             # the number 00086.csv is the peak --> so this code takes the peak number
+#             pk = os.path.splitext(file_name)[0]
+
+#             graph_type = 'Animated_2D_Plot'
+
+#             # change title order!!! 
+#             list_of_strings = [graph_type, exp_tag, pk]
+
+#             #in quotes is the the delimiter between the items in the string
+#             # by default it is a _ 
+#             my_title = "_".join(list_of_strings)
+           
+
+#             # plot title and font configurations
+#             plt.title(my_title , fontweight = 'bold', fontsize = 16)
+
+
+
+
+
+#             # animation function feeds a window of dataframe values into the graphing function at a time,
+#             # iterates over user specified range in dataframe with user specified tail length
+#             # color of animation is also specified here
+#             def animate(count):
+#                 sc.set_offsets(np.c_[coord.x.values[count-tail_length:count],coord.y.values[count-tail_length:count]])
+#                 cmap = plt.cm.Greens
+#                 norm = plt.Normalize(vmin=0, vmax=tail_length)
+#                 z = np.array(range(tail_length))
+#                 c = cmap(norm(z))
+#                 sc.set_color(c)
+#                 #button_ax = plt.axes([.78, .87, .1, .07]) # creates an outline for a potential button
+               
+#                 return sc
+
+#             ani = FuncAnimation(fig, animate, interval= frame_speed, frames = len(coord)) #frames=len(df)
+#             #ani.toggle(ax=button_ax)# potential button toggle for a potential button ;)
+#             if save_plot == 'yes':
+                
+#                 ani.save(my_title+'_animation_gif.gif', writer='pillow', fps=10, dpi=100)
+
+#             plt.tight_layout()
+#             plt.show()
+#             # With out the added if statement below, the animated plot will not animate 
+#             #(due to being a nested function)
+#         if plot_type == 'animated': 
+
+                
+
+#             return ani
+#         # 
+#         if plot_type == 'HTML':
+#             plt.close('all')
+#             if save_plot == 'yes':
+#                 with open(my_title+"_animation_html.html", "w") as f:
+#                     print(ani.to_jshtml(), file=f)
+#             return HTML(ani.to_jshtml())
         
         if plot_type == "interactive":
 
@@ -1114,7 +1344,7 @@ def graph(plot_type, *graph_parameters):
             # the number 00086.csv is the peak --> so this code takes the peak number
             pk = os.path.splitext(file_name)[0]
 
-            graph_type = 'Animated_2D_Plot'
+            graph_type = 'Interactive Plot'
 
             # change title order!!! 
             list_of_strings = [graph_type, exp_tag, pk]
@@ -1209,6 +1439,7 @@ def graph(plot_type, *graph_parameters):
         
         #determine number of plots from amount of frames desired in each plot
         j = int(math.ceil(len(df)/frames_per_plot))
+        
         if plot_type == 'grid':
             print(*['number of plots:',j])
 
@@ -1249,9 +1480,15 @@ def graph(plot_type, *graph_parameters):
         fig = plt.figure(figsize = (fig_size_x,fig_size_y))
         
         while i < j:
-                
-            x = dfs[i].iloc[:,x_unit] 
-            y = dfs[i].iloc[:,y_unit]
+            
+            if unit == "pixel":
+                x = dfs[i]["X displacement (pixels)"]
+                y = dfs[i]["Y displacement (pixels)"]
+            if unit == "nm":
+                x = dfs[i]["X displacement (nm)"]
+                y = dfs[i]["Y displacement (nm)"]
+            # x = dfs[i].iloc[:,x_unit] 
+            # y = dfs[i].iloc[:,y_unit]
             z = dfs[i].iloc[:,7]
             ax = fig.add_subplot(gs[i])
             do_plot(ax)
