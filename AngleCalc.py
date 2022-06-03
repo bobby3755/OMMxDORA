@@ -94,10 +94,12 @@ def avt_no_filter(down_sampled_df, frame_start, frame_end):
 
     # MORE OF CLAIRE CLAIRE'S CALCUATION OF ANGLE AND TIME
     # Assign theta(0,360), time, and theta(-infinity,infinity)-->(continuous degree rotation)
-    theta = df_theta.iloc[frame_start:frame_end, 2]
-    t = df_theta.iloc[frame_start:frame_end, 3]
+    
 
-    thetac = cont_rotation.iloc[frame_start:frame_end, 1]
+    theta = df_theta.iloc[:, 2]
+    t = df_theta.iloc[:, 3]
+
+    thetac = cont_rotation.iloc[:, 1]
     return t, theta, thetac
 
 
